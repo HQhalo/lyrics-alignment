@@ -1,0 +1,232 @@
+# This config contains the default values for training Aligner model on LJSpeech dataset.
+# If you want to train model on other dataset, you can change config values according to your dataset.
+# Most dataset-specific arguments are in the head of the config file, see below.
+
+name: Aligner
+
+train_dataset:  train.json
+validation_datasets: test.json
+sup_data_path: data
+sup_data_types: ["align_prior_matrix"]
+
+# Default values for dataset with sample_rate=22050
+sample_rate: 22050
+n_mel_channels: 80
+n_window_size: 1024
+n_window_stride: 256
+n_fft: 1024
+lowfreq: 0
+highfreq: 8000
+window: hann
+
+model:
+  symbols_embedding_dim: 512
+  bin_loss_start_ratio: 0.15
+  bin_loss_warmup_epochs: 15
+
+  sample_rate: ${sample_rate}
+  n_mel_channels: ${n_mel_channels}
+  n_window_size: ${n_window_size}
+  n_window_stride: ${n_window_stride}
+  n_fft: ${n_fft}
+  lowfreq: ${lowfreq}
+  highfreq: ${highfreq}
+  window: ${window}
+
+  text_tokenizer:
+    _target_: nemo.collections.common.tokenizers.text_to_speech.tts_tokenizers.BaseCharsTokenizer
+
+    chars: abcdefghijklmnopqrstuvwxyzàáâãèéêìíòóôõùúýăđĩũơưạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỵỷỹ
+    apostrophe: false
+
+  train_ds:
+    dataset:
+      _target_: nemo.collections.tts.torch.data.TTSDataset
+      manifest_filepath: ${train_dataset}
+      sample_rate: ${model.sample_rate}
+      sup_data_path: ${sup_data_path}
+      sup_data_types: ${sup_data_types}
+      n_fft: ${model.n_fft}
+      win_length: ${model.n_window_size}
+      hop_length: ${model.n_window_stride}
+      window: ${model.window}
+      n_mels: ${model.n_mel_channels}
+      lowfreq: ${model.lowfreq}
+      highfreq: ${model.highfreq}
+      max_duration: null
+      min_duration: 0.1
+      ignore_file: null
+      trim: false
+
+    dataloader_params:
+      drop_last: false
+      shuffle: true
+      batch_size: 16
+      num_workers: 4
+      pin_memory: true
+
+  validation_ds:
+    dataset:
+      _target_: nemo.collections.tts.torch.data.TTSDataset
+      manifest_filepath: ${validation_datasets}
+      sample_rate: ${model.sample_rate}
+      sup_data_path: ${sup_data_path}
+      sup_data_types: ${sup_data_types}
+      n_fft: ${model.n_fft}
+      win_length: ${model.n_window_size}
+      hop_length: ${model.n_window_stride}
+      window: ${model.window}
+      n_mels: ${model.n_mel_channels}
+      lowfreq: ${model.lowfreq}
+      highfreq: ${model.highfreq}
+      max_duration: null
+      min_duration: 0.1
+      ignore_file: null
+      trim: false
+
+    dataloader_params:
+      drop_last: false
+      shuffle: false
+      batch_size: 16
+      num_workers: 4
+      pin_memory: true
+
+  preprocessor:
+    _target_: nemo.collections.asr.modules.AudioToMelSpectrogramPreprocessor
+    features: ${model.n_mel_channels}
+    lowfreq: ${model.lowfreq}
+    highfreq: ${model.highfreq}
+    n_fft: ${model.n_fft}
+    n_window_size: ${model.n_window_size}
+    window_size: false
+    n_window_stride: ${model.n_window_stride}
+    window_stride: false
+    pad_to: 1
+    pad_value: -11.52
+    sample_rate: ${model.sample_rate}
+    window: ${model.window}
+    normalize: null
+    preemph: null
+    dither: 0.0
+    frame_splicing: 1
+    log: true
+    log_zero_guard_type: clamp
+    log_zero_guard_value: 1e-05
+    mag_power: 1.0
+
+  alignment_encoder:
+    _target_: module.AlignmentEncoderExtend
+    n_text_channels: ${model.symbols_embedding_dim}
+    n_att_channels: 128
+    decoder_feat_in: 512
+    
+  jasper_encoder:
+    _target_: nemo.collections.asr.modules.ConvASREncoder
+    feat_in: ${model.n_mel_channels}
+    activation: relu
+    conv_mask: true
+    jasper:
+      - dilation: [1]
+        dropout: 0.2
+        filters: 256
+        kernel: [11]
+        repeat: 1
+        residual: false
+        stride: [1]
+      - dilation: [1]
+        dropout: 0.2
+        filters: 256
+        kernel: [11]
+        repeat: 5
+        residual: true
+        residual_dense: true
+        stride: [1]
+      - dilation: [1]
+        dropout: 0.2
+        filters: 256
+        kernel: [11]
+        repeat: 5
+        residual: true
+        residual_dense: true
+        stride: [1]
+      - dilation: [1]
+        dropout: 0.2
+        filters: 256
+        kernel: [11]
+        repeat: 5
+        residual: true
+        residual_dense: true
+        stride: [1]
+      - dilation: [1]
+        dropout: 0.2
+        filters: 384
+        kernel: [13]
+        repeat: 5
+        residual: true
+        residual_dense: true
+        stride: [1]
+      - dilation: [1]
+        dropout: 0.2
+        filters: 384
+        kernel: [13]
+        repeat: 1
+        residual: true
+        residual_dense: true
+        stride: [1]
+      - dilation: [1]
+        dropout: 0.2
+        filters: 384
+        kernel: [13]
+        repeat: 1
+        residual: true
+        residual_dense: true
+        stride: [1]
+      - dilation: [1]
+        dropout: 0.2
+        filters: 512
+        kernel: [1]
+        repeat: 1
+        residual: true
+        residual_dense: true
+        stride: [1]
+  optim:
+    name: adam
+    lr: 1e-3
+    weight_decay: 1e-6
+
+    sched:
+      name: CosineAnnealing
+      min_lr: 5e-5
+      warmup_ratio: 0.35
+
+trainer:
+  devices: 1
+  num_nodes: 1
+  accelerator: gpu
+  strategy: ddp
+  precision: 32
+  max_epochs: 100
+  accumulate_grad_batches: 1
+  gradient_clip_val: 1000.0
+  enable_checkpointing: false # Provided by exp_manager
+  logger: false # Provided by exp_manager
+  log_every_n_steps: 100
+  check_val_every_n_epoch: 1
+  benchmark: false
+
+exp_manager:
+  exp_dir: null
+  name: ${name}
+  create_tensorboard_logger: true
+  create_checkpoint_callback: true
+  checkpoint_callback_params:
+    monitor: val_forward_sum_loss
+    mode: min
+    always_save_nemo: True
+  create_wandb_logger: false
+  wandb_logger_kwargs:
+    name: null
+    project: null
+    entity: null
+  resume_if_exists: false
+  resume_ignore_no_checkpoint: false

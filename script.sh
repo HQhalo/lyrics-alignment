@@ -1,0 +1,3 @@
+docker run --runtime=nvidia -w /home/nemo -d -v /home/ubuntu/jupyter/workspace:/home --shm-size=16g -p 8888:8888 -p 6006:6006 --ulimit memlock=-1 --ulimit stack=67108864 nvcr.io/nvidia/nemo:22.08 python aligner.py
+
+docker run --runtime=nvidia -w /home/nemo --rm -it -v /home/ubuntu/jupyter/workspace:/home --shm-size=16g -p 8888:8888 -p 6006:6006 --ulimit memlock=-1 --ulimit stack=67108864 nvcr.io/nvidia/nemo:22.08 bash
